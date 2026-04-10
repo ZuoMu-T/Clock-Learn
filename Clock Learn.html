@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-webapp-status-bar-style" default>
+  <meta name="format-detection" content="telephone=no">
+  <title>认识时钟 - 小小时间家</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FFF8F0; 
+      --bg-secondary: #FEF3E2; 
+      --fg: #3D3D3D; 
+      --muted: #8B7355;
+      --accent: #FF8C42; 
+      --accent-secondary: #4ECDC4; 
+      --card: #FFFFFF; 
+      --border: #E8DDD4;
+      --hour-hand: #2D5A7B; 
+      --minute-hand: #1F6B47; 
+      --second-hand: #C0392B;
+      --shadow-sm: 0 2px 8px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+      --gradient-bg: linear-gradient(135deg, #FFF8F0 0%, #FEF3E2 100%);
+      --gradient-accent: linear-gradient(135deg, var(--accent), #FF6B35);
+      --gradient-secondary: linear-gradient(135deg, var(--accent-secondary), #3BA99C);
+    }
+    * { box-sizing: border-box; transition: all 0.2s ease; }
+    body {
+      font-family: 'Nunito', sans-serif; 
+      background: var(--gradient-bg); 
+      color: var(--fg);
+      min-height: 100vh; 
+      margin: 0; 
+      padding: 6px 4px; /* 全局缩紧间距 */
+      overflow-y: auto;
+      padding-bottom: 6px;
+    }
+    .title-font { font-family: 'ZCOOL KuaiLe', cursive; }
+    
+    /* 时钟容器放大调整 */
+    .clock-container { 
+      position: relative; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      width: 100%; 
+      max-width: 320px; /* 放大时钟容器 */
+      margin: 0 auto;
+      padding: 15px; /* 增加内边距 */
+      border-radius: 16px;
+      background: var(--card);
+      box-shadow: var(--shadow-md);
+      margin-bottom: 6px !important;
+    }
+    .card {
+      background: var(--card); 
+      border-radius: 16px; 
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border); 
+      margin-bottom: 4px !important; 
+      padding: 8px !important;
+      position: relative; 
+      z-index: 10;
+    }
+    .card:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
+
+    /* 标签按钮紧凑 */
+    .tab-btn {
+      padding: 6px 4px; 
+      border-radius: 10px; 
+      font-weight: 700; 
+      font-size: 12px;
+      flex: 1; 
+      text-align: center; 
+      border: 1px solid transparent; 
+      cursor: pointer;
+      background: var(--bg-secondary);
+      color: var(--muted);
+    }
+    .tab-btn.active { 
+      background: var(--gradient-accent); 
+      color: white; 
+      box-shadow: 0 2px 4px rgba(255, 140, 66, 0.3);
+    }
+    .tab-btn:not(.active):hover {
+      background: var(--bg);
+      color: var(--accent);
+    }
+    
+    /* 输入框紧凑 */
+    .time-input {
+      width: 64px;     
+      padding: 6px 4px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 700;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      touch-action: manipulation;
+    }
+    .time-input:focus { 
+      border-color: var(--accent); 
+      outline: 2px solid rgba(255, 140, 66, 0.3);
+    }
+    .time-input::-webkit-inner-spin-button, 
+    .time-input::-webkit-outer-spin-button { 
+      -webkit-appearance: none; 
+      margin: 0; 
+    }
+
+    /* 按钮紧凑 */
+    .btn-primary, .btn-secondary, .btn-stop, .btn-resume {
+      padding: 6px 10px; 
+      border-radius: 10px; 
+      font-weight: 700; 
+      font-size: 13px;
+      border: none; 
+      cursor: pointer; 
+      width: 100%; 
+      margin-bottom: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .btn-primary { 
+      background: var(--gradient-accent); 
+      color: white; 
+    }
+    .btn-secondary { 
+      background: var(--gradient-secondary); 
+      color: white; 
+    }
+    .btn-stop { 
+      background: linear-gradient(135deg, #E85A4F, #D64545); 
+      color: white; 
+    }
+    .btn-resume { 
+      background: linear-gradient(135deg, #F9A826, #FF8C42); 
+      color: white; 
+    }
+    .btn-primary:hover, .btn-secondary:hover, .btn-stop:hover, .btn-resume:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(0,0,0,0.12);
+    }
+
+    .panel { display: none; }
+    .panel.active { 
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(3px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 状态标签紧凑 */
+    .status-badge { 
+      padding: 3px 8px; 
+      border-radius: 10px; 
+      font-size: 12px; 
+      margin: 4px 0;
+      display: inline-block;
+    }
+    .status-badge.running { 
+      background: rgba(78, 205, 196, 0.15); 
+      color: #3D8B7A; 
+      border: 1px solid rgba(78, 205, 196, 0.3);
+    }
+    .status-badge.idle { 
+      background: rgba(232, 90, 79, 0.15); 
+      color: #D64545;
+      border: 1px solid rgba(232, 90, 79, 0.3);
+    }
+    .status-badge.paused { 
+      background: rgba(249, 168, 38, 0.15); 
+      color: #B56507;
+      border: 1px solid rgba(249, 168, 38, 0.3);
+    }
+
+    .hint-text { color: var(--muted); font-size: 12px; line-height: 1.3; }
+    .digital-time { 
+      font-size: 1.1rem; 
+      font-weight: 900; 
+      letter-spacing: 1px;
+      color: var(--fg);
+    }
+    .container { 
+      width: 100%; 
+      padding: 0 4px; 
+      margin: 0 auto;
+      max-width: 480px;
+    }
+    .grid { display: flex; flex-direction: column; gap: 6px; } /* 全局间距缩小 */
+    
+    /* 时钟画布放大调整 */
+    canvas#clockCanvas { 
+      width: 90vw; 
+      max-width: 300px; /* 放大时钟画布 */
+      height: auto; 
+      aspect-ratio: 1/1;
+      filter: drop-shadow(0 3px 5px rgba(0,0,0,0.1));
+    }
+
+    h1, h2, h3, p { margin: 2px 0 !important; }
+    ul { padding-left: 20px; margin: 4px 0; }
+    li { margin: 2px 0; line-height: 1.3; }
+
+    /* 行间距缩小 */
+    .anim-row { 
+      display: flex; 
+      align-items: center; 
+      gap: 4px; 
+      margin-bottom: 6px;
+    }
+    .anim-row input { flex: 1; }
+
+    .time-label {
+      font-size: 14px;
+      font-weight: 900;
+      color: var(--accent);
+      width: 50px;
+      flex-shrink: 0;
+    }
+
+    /* 头部紧凑 */
+    header {
+      text-align: center;
+      margin-bottom: 8px !important;
+      padding: 4px 0;
+    }
+    header h1 {
+      font-size: 1.4rem !important;
+      color: var(--accent);
+    }
+    header p {
+      font-size: 0.85rem !important;
+      color: var(--muted);
+    }
+
+    /* 下拉框调整 - 靠左显示 */
+    select#animSpeed {
+      padding: 6px 8px; 
+      border-radius: 8px; 
+      font-size: 12px; 
+      width: auto; /* 改为自动宽度 */
+      max-width: 120px; /* 限制最大宽度 */
+      margin-bottom: 6px; 
+      border-color: var(--border); 
+      background: var(--bg);
+      font-weight: 600;
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238B7355' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      background-size: 14px;
+    }
+
+    /* 动画速度和状态行容器 */
+    .anim-speed-status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      width: 100%;
+    }
+
+    /* ========== 学习小贴士 右移 ========== */
+    .tip-card {
+      padding-left: 20px !important; /* 整体向右移动 */
+    }
+    .tip-card h3 {
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 4px !important;
+    }
+    .tip-card ul li {
+      position: relative;
+      padding-left: 8px;
+    }
+    .tip-card ul li::before {
+      content: "●";
+      position: absolute;
+      left: -12px;
+      font-size: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--accent);
+    }
+
+  </style>
+</head>
+<body>
+  <div class="relative z-10 container">
+    <!--<header class="text-center mb-1">
+      <h1 class="title-font text-lg" style="color: var(--accent);">认识时钟</h1>
+      <p class="text-xs" style="color: var(--muted);">学习认识时间</p>
+    </header> -->
+
+    <div class="grid">
+      <div class="flex flex-col items-center">
+        <div class="clock-container mb-1">
+          <canvas id="clockCanvas" width="360" height="360"></canvas> <!-- 放大画布尺寸 -->
+        </div>
+        <div class="card px-2 py-2 text-center">
+          <div class="hint-text text-xs mb-1">当前显示时间</div>
+          <div class="digital-time" id="digitalDisplay">00:00:00</div>
+        </div>
+      </div>
+      
+      <div>
+        <div class="card p-2 mb-1">
+          <div class="flex gap-2 justify-center">
+            <button class="tab-btn active" data-mode="realtime" onclick="switchMode('realtime')">北京时间</button>
+            <button class="tab-btn" data-mode="input" onclick="switchMode('input')">时间点</button>
+            <button class="tab-btn" data-mode="animate" onclick="switchMode('animate')">时间段</button>
+          </div>
+        </div>
+
+        <div id="realtimePanel" class="panel active">
+          <div class="card p-2 text-center">
+            <div class="mb-1"><div class="status-badge running"><span class="status-dot">●</span>实时运行中</div></div>
+            <div class="digital-time" id="realtimeDisplay">--:--:--</div>
+          </div>
+        </div>
+
+        <div id="inputPanel" class="panel">
+          <div class="card p-2">
+            <h3 class="text-sm font-bold text-center mb-2">时间点</h3>
+            <div class="flex justify-center items-center gap-2 mb-2">
+              <div class="text-center">
+                <label class="block hint-text text-xs mb-1">时</label>
+                <input type="number" id="inputHour" class="time-input" min="0" max="23" value="10">
+              </div>
+              <span class="font-bold text-lg">:</span>
+              <div class="text-center">
+                <label class="block hint-text text-xs mb-1">分</label>
+                <input type="number" id="inputMinute" class="time-input" min="0" max="59" value="10">
+              </div>
+              <span class="font-bold text-lg">:</span>
+              <div class="text-center">
+                <label class="block hint-text text-xs mb-1">秒</label>
+                <input type="number" id="inputSecond" class="time-input" min="0" max="59" value="30">
+              </div>
+            </div>
+            <button class="btn-primary">显示</button>
+          </div>
+        </div>
+        
+        <div id="animatePanel" class="panel">
+          <div class="card p-2">
+            <h3 class="text-sm font-bold text-center mb-2">时间段：从时间A到时间B</h3>
+            
+            <div class="anim-row">
+              <span class="time-label">时间A</span>
+              <input type="number" id="startHour" class="time-input" min="0" max="23" value="10">
+              <span class="font-bold">:</span>
+              <input type="number" id="startMinute" class="time-input" min="0" max="59" value="0">
+              <span class="font-bold">:</span>
+              <input type="number" id="startSecond" class="time-input" min="0" max="59" value="0">
+            </div>
+            
+            <div class="anim-row mb-2">
+              <span class="time-label">时间B</span>
+              <input type="number" id="endHour" class="time-input" min="0" max="23" value="10">
+              <span class="font-bold">:</span>
+              <input type="number" id="endMinute" class="time-input" min="0" max="59" value="30">
+              <span class="font-bold">:</span>
+              <input type="number" id="endSecond" class="time-input" min="0" max="59" value="0">
+            </div>
+            
+            <!-- 新增行容器：速度选择框靠左，状态靠右 -->
+            <div class="anim-speed-status-row">
+              <select id="animSpeed">
+                <option value="1">1秒=1秒</option>
+                <option value="3">1秒=3秒</option>
+                <option value="5" selected>1秒=5秒</option>
+                <option value="10">1秒=10秒</option>
+                <option value="60">1秒=1分</option>
+                <option value="120">1秒=2分</option>
+                <option value="600">1秒=10分</option>
+              </select>
+              <div class="status-badge" id="animStatus"><span id="animStatusText">未运行</span></div>
+            </div>
+
+            <div class="flex gap-2">
+              <button class="btn-secondary flex-1" onclick="startAnimation()">开始</button>
+              <button class="btn-stop flex-1" onclick="stopAnimation()">停止</button>
+              <button class="btn-resume flex-1" onclick="resumeAnimation()">继续</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 学习小贴士 右移 -->
+        <div class="card tip-card p-2 mt-1">
+          <h3 class="font-bold text-sm">学习小贴士</h3>
+          <ul class="space-y-1 hint-text text-sm">
+            <li>时针（短蓝）：指到几就是几点</li>
+            <li>分针（长深绿）：一圈60分钟</li>
+            <li>秒针（细深红）：一圈60秒</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('clockCanvas');
+    const ctx = canvas.getContext('2d');
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.min(centerX, centerY) - 18;
+
+    const COLORS = {
+      hourHand: '#2D5A7B', minuteHand: '#1F6B47', secondHand: '#C0392B',
+      clockFace: '#FFFFFF', clockBorder: '#2D5A7B', tickMarks: '#8B7355',
+      hourNumbers: '#3D3D3D', centerDot: '#FF8C42'
+    };
+
+    let currentMode = 'realtime';
+    let animationId = null;
+    let isAnimating = false;
+
+    let animStartSec = 0;
+    let animEndSec = 0;
+    let animSpeed = 5;
+    let animProgress = 0;
+    let animLastTime = 0;
+
+    function drawClockFace() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.beginPath(); ctx.arc(centerX, centerY, radius + 10, 0, Math.PI * 2); ctx.strokeStyle = '#65cdf6'; ctx.lineWidth = 5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(centerX, centerY, radius, 0, Math.PI*2); ctx.fillStyle = COLORS.clockFace; ctx.fill(); ctx.strokeStyle = COLORS.clockBorder; ctx.lineWidth = 2; ctx.stroke();
+    }
+    function drawTickMarks() {
+      for(let i=0;i<60;i++){
+        const angle = (i*6 -90) * Math.PI/180; const isHour = i%5===0; const or = radius-12; const ir = isHour ? radius-24 : radius-18;
+        ctx.beginPath(); ctx.moveTo(centerX+Math.cos(angle)*or, centerY+Math.sin(angle)*or); ctx.lineTo(centerX+Math.cos(angle)*ir, centerY+Math.sin(angle)*ir);
+        ctx.strokeStyle = isHour ? COLORS.tickMarks : '#5C4C37'; ctx.lineWidth = isHour ? 2 : 1; ctx.stroke();
+      }
+    }
+    function drawHourNumbers() {
+      ctx.font = 'bold 26px Nunito'; // 放大数字字体
+      ctx.fillStyle = COLORS.hourNumbers; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for(let i=1;i<=12;i++){ const a = (i*30-90)*Math.PI/180; const x = centerX + Math.cos(a)*(radius-40); const y = centerY + Math.sin(a)*(radius-40); ctx.fillText(i,x,y); }
+    }
+    function drawHand(angle, len, w, color) {
+      const a = angle - Math.PI/2; const x = centerX + Math.cos(a)*len; const y = centerY + Math.sin(a)*len;
+      ctx.beginPath(); ctx.moveTo(centerX, centerY); ctx.lineTo(x,y); ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.stroke();
+    }
+    function drawClock(h,m,s) {
+      drawClockFace(); drawTickMarks(); drawHourNumbers();
+      const ha = (h%12)*30 + m*0.5; const ma = m*6 + s*0.1; const sa = s*6;
+      drawHand(ha*Math.PI/180, radius*0.48, 7, COLORS.hourHand);
+      drawHand(ma*Math.PI/180, radius*0.70, 5, COLORS.minuteHand);
+      drawHand(sa*Math.PI/180, radius*0.80, 2, COLORS.secondHand);
+      ctx.beginPath(); ctx.arc(centerX,centerY,7,0,Math.PI*2); ctx.fillStyle = COLORS.centerDot; ctx.fill();
+      document.getElementById('digitalDisplay').textContent = `${String(h).padStart(2,0)}:${String(m).padStart(2,0)}:${String(s).padStart(2,0)}`;
+    }
+    function switchMode(m){
+      currentMode=m; document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+      document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active')); document.getElementById(m+'Panel').classList.add('active');
+      if(m!='animate') stopAnimation(); if(m==='realtime') startRealtime();
+    }
+    function startRealtime(){
+      function u(){ if(currentMode!='realtime')return; const n=new Date(); drawClock(n.getHours(),n.getMinutes(),n.getSeconds()); document.getElementById('realtimeDisplay').textContent = `${String(n.getHours()).padStart(2,0)}:${String(n.getMinutes()).padStart(2,0)}:${String(n.getSeconds()).padStart(2,0)}`; animationId=requestAnimationFrame(u); } u();
+    }
+    function showInputTime(){
+      const h=clamp(+document.getElementById('inputHour').value||0,0,23); const m=clamp(+document.getElementById('inputMinute').value||0,0,59); const s=clamp(+document.getElementById('inputSecond').value||0,0,59);
+      if(animationId){cancelAnimationFrame(animationId);animationId=null;} drawClock(h,m,s);
+    }
+
+    function startAnimation() {
+      stopAnimation();
+      const sh = clamp(+document.getElementById('startHour').value || 0, 0, 23);
+      const sm = clamp(+document.getElementById('startMinute').value || 0, 0, 59);
+      const ss = clamp(+document.getElementById('startSecond').value || 0, 0, 59);
+      const eh = clamp(+document.getElementById('endHour').value || 0, 0, 23);
+      const em = clamp(+document.getElementById('endMinute').value || 0, 0, 59);
+      const es = clamp(+document.getElementById('endSecond').value || 0, 0, 59);
+
+      animSpeed = +document.getElementById('animSpeed').value || 5;
+      animStartSec = sh * 3600 + sm * 60 + ss;
+      animEndSec = eh * 3600 + em * 60 + es;
+      if (animEndSec <= animStartSec) animEndSec += 86400;
+
+      animProgress = 0;
+      isAnimating = true;
+      updateAnimationStatus('running', '运行中');
+      animLastTime = performance.now();
+      runAnimation();
+    }
+
+    function runAnimation() {
+      if (!isAnimating) return;
+      const now = performance.now();
+      const delta = (now - animLastTime) / 1000;
+      animLastTime = now;
+
+      const totalDur = (animEndSec - animStartSec) / animSpeed;
+      animProgress += delta / totalDur;
+      animProgress = Math.min(animProgress, 1);
+
+      const total = animStartSec + (animEndSec - animStartSec) * animProgress;
+      const h = Math.floor(total / 3600) % 24;
+      const m = Math.floor((total % 3600) / 60);
+      const s = Math.floor(total % 60);
+      drawClock(h, m, s);
+
+      if (animProgress < 1) {
+        animationId = requestAnimationFrame(runAnimation);
+      } else {
+        isAnimating = false;
+        updateAnimationStatus('idle', '完成');
+      }
+    }
+
+    function stopAnimation() {
+      isAnimating = false;
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+      updateAnimationStatus('paused', '已暂停');
+    }
+
+    function resumeAnimation() {
+      if (currentMode !== 'animate' || isAnimating || animProgress >= 1) return;
+      isAnimating = true;
+      updateAnimationStatus('running', '运行中');
+      animLastTime = performance.now();
+      runAnimation();
+    }
+
+    function updateAnimationStatus(st,txt){ const b=document.getElementById('animStatus'); b.className='status-badge '+st; document.getElementById('animStatusText').textContent=txt; }
+    function clamp(v,mi,ma){return Math.max(mi,Math.min(ma,v));}
+
+    document.querySelector('.btn-primary').addEventListener('click', showInputTime);
+
+    window.addEventListener('DOMContentLoaded',()=>{drawClock(10,10,30);startRealtime();});
+  </script>
+</body>
+</html>
